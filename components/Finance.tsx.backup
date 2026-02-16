@@ -1,0 +1,709 @@
+
+import React, { useState, useEffect } from 'react';
+import {
+  Wallet,
+  TrendingUp,
+  Receipt,
+  Plus,
+  FileText,
+  Download,
+  Trash2,
+  CheckCircle,
+  MessageSquare,
+  Send,
+  Calendar,
+  DollarSign,
+  FileCheck,
+  Printer,
+  Share2,
+  GraduationCap,
+  PieChart
+} from 'lucide-react';
+import { Transaction, Student, Appointment } from '../types';
+import { UserProfile } from '../App';
+import { MonthNavigator, Modal } from './shared';
+
+interface FinanceProps {
+  students: Student[];
+  appointments: Appointment[];
+  transactions: Transaction[];
+  userProfile: UserProfile;
+  onAddTransaction: (tx: Transaction) => void;
+  onUpdateStatus: (id: string, status: Transaction['status']) => void;
+  onDelete: (id: string) => void;
+}
+
+const Finance: React.FC<FinanceProps> = ({
+  students,
+  appointments,
+  transactions,
+  userProfile,
+  onAddTransaction,
+  onUpdateStatus,
+  onDelete
+}) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState<string | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState<string | null>(null);
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+
+  // Month Navigation State
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Form State
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [amount, setAmount] = useState<number | string>('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [calculatedClasses, setCalculatedClasses] = useState<number | string>(0);
+
+  // Auto-calculate classes and fill amount when student is selected
+  useEffect(() => {
+    if (selectedStudentId) {
+      const student = students.find(s => s.id === selectedStudentId);
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+
+      const count = appointments.filter(apt => {
+        if (apt.studentId !== selectedStudentId) return false;
+        const [d, m, y] = apt.date.split('/').map(Number);
+        return m === currentMonth && y === currentYear && apt.status !== 'Faltou';
+      }).length;
+
+      setCalculatedClasses(count);
+
+      // Auto-fill amount from student's monthly fee
+      if (student && student.monthlyFee) {
+        setAmount(student.monthlyFee);
+      } else {
+        setAmount('');
+      }
+    } else {
+      setCalculatedClasses(0);
+      setAmount('');
+    }
+  }, [selectedStudentId, appointments, students]);
+
+
+
+  // Filter transactions by selected month
+  const currentMonthTransactions = transactions.filter(tx => {
+    const [d, m, y] = tx.date.split('/').map(Number);
+    return m === (currentDate.getMonth() + 1) && y === currentDate.getFullYear();
+  });
+
+  const handleCreateCharge = () => {
+    const student = students.find(s => s.id === selectedStudentId);
+    if (!student) return;
+
+    const currentMonthName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(new Date());
+    const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+
+    const newTx: Transaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      studentId: student.id,
+      studentName: student.name,
+      amount: Number(amount),
+      date: new Date().toLocaleDateString('pt-BR'),
+      status: 'Pendente',
+      description: `Mensalidade ${capitalizedMonth}`,
+      classCount: Number(calculatedClasses),
+      isRecurring: isRecurring
+    };
+
+    onAddTransaction(newTx);
+    setIsAdding(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setSelectedStudentId('');
+    setAmount('');
+    setIsRecurring(false);
+    setCalculatedClasses(0);
+  };
+
+  const generateMessage = (tx: Transaction) => {
+    const student = students.find(s => s.id === tx.studentId);
+    const guardianName = student?.guardian?.name || "Responsável";
+    const dateFormatted = tx.date;
+
+    let message = `Olá, ${guardianName}! Seguem os dados para o acerto das aulas de ${tx.studentName.split(' ')[0]} referente ao período de ${tx.description.split(' ')[1]}:
+
+📅 Data: ${dateFormatted}
+📖 Aulas realizadas: ${tx.classCount || '---'}
+💰 Valor Total: R$ ${tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    if (userProfile.pixKey) {
+      message += `\n\n🔑 PIX para pagamento:\n${userProfile.pixKey}`;
+    }
+
+    message += `\n\nQualquer dúvida estou à disposição. Abraços!`;
+
+    return message;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Mensagem copiada para a área de transferência!");
+    setShowMessageModal(null);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const totalReceived = currentMonthTransactions
+    .filter(t => t.status === 'Pago')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const totalPending = currentMonthTransactions
+    .filter(t => t.status === 'Pendente')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const activeTransaction = transactions.find(t => t.id === showReceiptModal);
+
+  const monthLabel = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const capitalizedMonthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Financeiro</h1>
+          <p className="text-slate-500 dark:text-slate-400">Controle suas finanças, mensalidades e cobranças.</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowBalanceModal(true)}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+          >
+            <PieChart className="w-5 h-5" />
+            Gerar Balanço
+          </button>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Cobrança
+          </button>
+        </div>
+      </div>
+
+      {/* Month Navigation */}
+      <div className="print:hidden">
+        <MonthNavigator
+          currentDate={currentDate}
+          onDateChange={setCurrentDate}
+          icon={<Calendar className="w-4 h-4 text-indigo-500" />}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+        <div className="bg-indigo-600 p-6 rounded-3xl text-white shadow-xl shadow-indigo-200 dark:shadow-none transition-transform hover:scale-[1.02]">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-2.5 rounded-xl">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total Mensal</span>
+          </div>
+          <p className="text-indigo-100 text-sm font-medium">Saldo Previsto</p>
+          <h3 className="text-3xl font-bold mt-1">R$ {(totalReceived + totalPending).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-emerald-50 dark:bg-emerald-500/10 p-2.5 rounded-xl">
+              <TrendingUp className="w-6 h-6 text-emerald-500" />
+            </div>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Recebido (Mês)</p>
+          <h3 className="text-3xl font-bold text-slate-800 dark:text-white mt-1">R$ {totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-amber-50 dark:bg-amber-500/10 p-2.5 rounded-xl">
+              <Receipt className="w-6 h-6 text-amber-500" />
+            </div>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">A Receber (Mês)</p>
+          <h3 className="text-3xl font-bold text-slate-800 dark:text-white mt-1">R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors print:hidden">
+        <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Transações de {capitalizedMonthLabel}</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50/50 dark:bg-slate-800/50">
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aluno / Descrição</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Aulas</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {currentMonthTransactions.map((tx) => (
+                <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                        <FileText className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{tx.studentName}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{tx.description} {tx.isRecurring && <span className="text-indigo-500 ml-1 font-bold">(Recorrente)</span>}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 font-bold text-center">
+                    {tx.classCount || '--'}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-slate-800 dark:text-white">R$ {tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${tx.status === 'Pago' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      }`}>
+                      {tx.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setShowMessageModal(tx.id)}
+                        className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-all"
+                        title="Gerar Mensagem"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+
+                      {tx.status === 'Pago' && (
+                        <button
+                          onClick={() => setShowReceiptModal(tx.id)}
+                          className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                          title="Visualizar Recibo"
+                        >
+                          <FileCheck className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {tx.status === 'Pendente' && (
+                        <button
+                          onClick={() => onUpdateStatus(tx.id, 'Pago')}
+                          className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 transition-all"
+                          title="Marcar como Pago"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDelete(tx.id)}
+                        className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-100 transition-all"
+                        title="Excluir Cobrança"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {currentMonthTransactions.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-12 text-center text-slate-400 italic">Nenhuma cobrança registrada neste mês.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* MODAL: Balanço Mensal */}
+      <Modal
+        isOpen={showBalanceModal}
+        onClose={() => setShowBalanceModal(false)}
+        title="Balanço Mensal"
+        maxWidth="2xl"
+        showFooter
+        footerContent={
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              onClick={() => setShowBalanceModal(false)}
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
+            >
+              Fechar
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimir Relatório
+            </button>
+          </div>
+        }
+      >
+        <div className="p-10 space-y-8" id="balance-content">
+          {/* Header do Balanço */}
+          <div className="flex justify-between items-start border-b-2 border-slate-100 dark:border-slate-800 pb-8">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-600 p-3 rounded-2xl">
+                <PieChart className="text-white w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-400">Ensinaê Financeiro</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Relatório de Desempenho</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-tighter">Referência</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-white capitalize">{monthLabel}</p>
+            </div>
+          </div>
+
+          {/* Resumo do Balanço */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-emerald-50 dark:bg-emerald-900/10 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-900/20">
+              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Total Recebido</p>
+              <h3 className="text-2xl font-black text-slate-800 dark:text-white">R$ {totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20">
+              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Pendente</p>
+              <h3 className="text-2xl font-black text-slate-800 dark:text-white">R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            </div>
+          </div>
+
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-indigo-600 p-1.5 rounded-full">
+                <Wallet className="text-white w-4 h-4" />
+              </div>
+              <span className="text-sm font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-widest">Saldo Previsto Total</span>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-black text-indigo-700 dark:text-indigo-400">R$ {(totalReceived + totalPending).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+
+          <div className="pt-6">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Detalhamento do Mês</h4>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="py-2 text-slate-400 font-bold uppercase text-[10px]">Data</th>
+                  <th className="py-2 text-slate-400 font-bold uppercase text-[10px]">Aluno</th>
+                  <th className="py-2 text-slate-400 font-bold uppercase text-[10px] text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {currentMonthTransactions.map(tx => (
+                  <tr key={tx.id}>
+                    <td className="py-3 text-slate-600 dark:text-slate-300 font-medium">{tx.date.substring(0, 5)}</td>
+                    <td className="py-3 text-slate-800 dark:text-white font-bold">{tx.studentName}</td>
+                    <td className="py-3 text-right font-mono text-slate-600 dark:text-slate-300">R$ {tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer */}
+          <div className="pt-8 text-center space-y-2">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Relatório Gerado em {new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </Modal>
+
+      {/* MODAL: Nova Cobrança */}
+      <Modal
+        isOpen={isAdding}
+        onClose={() => setIsAdding(false)}
+        title="Nova Cobrança"
+        maxWidth="lg"
+        showFooter
+        footerContent={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setIsAdding(false)}
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreateCharge}
+              className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Gerar Cobrança
+            </button>
+          </div>
+        }
+      >
+        <div className="p-8 space-y-6">
+
+          <div className="p-8 space-y-6">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Selecionar Aluno</label>
+              <select
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none dark:text-white"
+                value={selectedStudentId}
+                onChange={e => setSelectedStudentId(e.target.value)}
+              >
+                <option value="">Escolha um aluno...</option>
+                {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {selectedStudentId && (
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center gap-4 animate-in slide-in-from-top-2">
+                <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl shadow-sm">
+                  <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-tighter block mb-1">Aulas identificadas no mês (Editável)</label>
+                  <input
+                    type="number"
+                    className="w-full bg-transparent border-none p-0 text-xl font-black text-indigo-600 dark:text-indigo-400 focus:ring-0"
+                    value={calculatedClasses}
+                    onChange={e => setCalculatedClasses(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Valor Total (R$)</label>
+              <input
+                type="number"
+                placeholder="Ex: 450.00"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none dark:text-white"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+              />
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-12 h-6 rounded-full transition-all flex items-center px-1 ${isRecurring ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full transition-all transform ${isRecurring ? 'translate-x-6' : 'translate-x-0'}`} />
+              </div>
+              <input type="checkbox" className="hidden" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 transition-colors">Cobrança Recorrente (Salvar valor padrão)</span>
+            </label>
+          </div>
+
+          <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+            <button
+              onClick={() => setIsAdding(false)}
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreateCharge}
+              disabled={!selectedStudentId || !amount}
+              className={`px-8 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-lg ${selectedStudentId && amount ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-400 cursor-not-allowed'
+                }`}
+            >
+              Gerar Cobrança
+            </button>
+          </div>
+        </div>
+    </div>
+  )
+}
+
+{/* MODAL: Gerar Mensagem */ }
+<Modal
+  isOpen={!!showMessageModal}
+  onClose={() => setShowMessageModal(null)}
+  title="Mensagem Automática"
+  maxWidth="lg"
+  showFooter
+  footerContent={
+    <div className="flex justify-end gap-3">
+      <button
+        onClick={() => copyToClipboard(generateMessage(transactions.find(t => t.id === showMessageModal)!))}
+        className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg"
+      >
+        <Send className="w-4 h-4" />
+        Copiar para Enviar
+      </button>
+    </div>
+  }
+>
+  <div className="p-8">
+    <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
+      {generateMessage(transactions.find(t => t.id === showMessageModal)!)}
+    </div>
+  </div>
+</Modal>
+
+{/* MODAL: Visualizar Recibo */ }
+<Modal
+  isOpen={!!showReceiptModal && !!activeTransaction}
+  onClose={() => setShowReceiptModal(null)}
+  title="Recibo de Pagamento"
+  maxWidth="2xl"
+  showFooter
+  footerContent={
+    <div className="flex flex-wrap justify-end gap-3">
+      <button
+        onClick={() => {
+          const text = `Comprovante Ensinaê: ${activeTransaction?.studentName} - ${activeTransaction?.description} - R$ ${activeTransaction?.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Veja seu recibo anexo.`;
+          navigator.clipboard.writeText(text);
+          alert("Link do recibo simulado copiado para compartilhar!");
+        }}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+      >
+        <Share2 className="w-4 h-4" />
+        Compartilhar
+      </button>
+      <button
+        onClick={handlePrint}
+        className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg"
+      >
+        <Download className="w-4 h-4" />
+        Gerar PDF / Imprimir
+      </button>
+    </div>
+  }
+>
+  <div className="p-10 space-y-8" id="receipt-content">
+    {/* Header do Recibo */}
+    <div className="flex justify-between items-start border-b-2 border-slate-100 dark:border-slate-800 pb-8">
+      <div className="flex items-center gap-4">
+        <div className="bg-indigo-600 p-3 rounded-2xl">
+          <GraduationCap className="text-white w-8 h-8" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-400">Ensinaê</h3>
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Educação & Tecnologia</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-tighter">Recibo Nº</p>
+        <p className="text-lg font-bold text-slate-800 dark:text-white">#{activeTransaction.id.toUpperCase()}</p>
+      </div>
+    </div>
+
+    {/* Corpo do Recibo */}
+    <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Recebemos de</p>
+        <p className="text-xl font-bold text-slate-800 dark:text-white">{activeTransaction.studentName}</p>
+        {students.find(s => s.id === activeTransaction.studentId)?.guardian && (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Responsável: <span className="font-semibold">{students.find(s => s.id === activeTransaction.studentId)?.guardian?.name}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-8 py-6 border-y border-slate-50 dark:border-slate-800">
+        <div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Referente a</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{activeTransaction.description}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{activeTransaction.classCount} aulas realizadas</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data de Emissão</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{activeTransaction.date}</p>
+        </div>
+      </div>
+
+      <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="bg-emerald-500 p-1.5 rounded-full">
+            <CheckCircle className="text-white w-4 h-4" />
+          </div>
+          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Pago integralmente</span>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Valor Total</p>
+          <p className="text-3xl font-black text-indigo-700 dark:text-indigo-400">R$ {activeTransaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Assinatura Simbolica */}
+    <div className="pt-12 text-center space-y-2">
+      <div className="w-48 h-px bg-slate-200 dark:bg-slate-700 mx-auto" />
+      <p className="text-sm font-bold text-slate-800 dark:text-white">{userProfile.name}</p>
+      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ensinaê - Gestão Pedagógica</p>
+    </div>
+  </div>
+
+  <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-wrap justify-end gap-3 print:hidden">
+    <button
+      onClick={() => setShowReceiptModal(null)}
+      className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
+    >
+      Fechar
+    </button>
+    <button
+      onClick={() => {
+        const text = `Comprovante Ensinaê: ${activeTransaction.studentName} - ${activeTransaction.description} - R$ ${activeTransaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Veja seu recibo anexo.`;
+        navigator.clipboard.writeText(text);
+        alert("Link do recibo simulado copiado para compartilhar!");
+      }}
+      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+    >
+      <Share2 className="w-4 h-4" />
+      Compartilhar
+    </button>
+    <button
+      onClick={handlePrint}
+      className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg"
+    >
+      <Download className="w-4 h-4" />
+      Gerar PDF / Imprimir
+    </button>
+  </div>
+</div>
+        </div >
+      )}
+
+<style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #receipt-content, #receipt-content * {
+            visibility: visible;
+          }
+          #receipt-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 2cm;
+          }
+          #balance-content, #balance-content * {
+            visibility: visible;
+          }
+          #balance-content {
+             position: absolute;
+             left: 0;
+             top: 0;
+             width: 100%;
+             margin: 0;
+             padding: 2cm;
+          }
+          .dark {
+            background-color: white !important;
+            color: black !important;
+          }
+          .dark #receipt-content, .dark #balance-content {
+            background-color: white !important;
+            color: black !important;
+          }
+        }
+      `}</style>
+    </div >
+  );
+};
+
+export default Finance;
