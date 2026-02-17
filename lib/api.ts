@@ -285,6 +285,7 @@ function mapStudentFromDB(db: any): Student {
         id: db.id,
         name: db.name,
         email: db.email,
+        birthDate: db.birth_date,
         phone: db.phone,
         registrationDate: db.registration_date,
         status: db.status,
@@ -301,6 +302,7 @@ function mapStudentToDB(student: Omit<Student, 'id'>) {
     return {
         name: student.name,
         email: student.email,
+        birth_date: student.birthDate,
         phone: student.phone,
         registration_date: student.registrationDate,
         status: student.status,

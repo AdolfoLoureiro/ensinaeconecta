@@ -14,7 +14,8 @@ export interface ClassSchedule {
 export interface Student {
   id: string;
   name: string;
-  email: string;
+  email?: string;
+  birthDate?: string;
   phone: string;
   registrationDate: string;
   status: 'Ativo' | 'Inativo';

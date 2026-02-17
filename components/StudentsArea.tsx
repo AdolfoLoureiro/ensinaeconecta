@@ -29,7 +29,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
   // Form State
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    birthDate: '',
     phone: '',
     registrationDate: new Date().toLocaleDateString('pt-BR'),
     schoolGrade: '',
@@ -74,7 +74,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
     setPhotoPreview(null);
     setTempSchedules([]);
     setFormData({
-      name: '', email: '', phone: '', registrationDate: new Date().toLocaleDateString('pt-BR'), schoolGrade: '', schoolName: '', monthlyFee: '',
+      name: '', birthDate: '', phone: '', registrationDate: new Date().toLocaleDateString('pt-BR'), schoolGrade: '', schoolName: '', monthlyFee: '',
       guardianName: '', guardianCpf: '', guardianPhone: '', guardianAddress: '',
       status: 'Ativo'
     });
@@ -92,7 +92,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
     setEditingStudentId(student.id);
     setFormData({
       name: student.name,
-      email: student.email,
+      birthDate: student.birthDate || '',
       phone: student.phone,
       registrationDate: student.registrationDate,
       schoolGrade: student.schoolGrade || '',
@@ -117,7 +117,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
       const updatedStudent: Student = {
         ...existingStudent!,
         name: formData.name,
-        email: formData.email,
+        birthDate: formData.birthDate,
         phone: formData.phone,
         registrationDate: formData.registrationDate,
         status: formData.status,
@@ -138,7 +138,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
       const newStudent: Student = {
         id: Math.random().toString(36).substr(2, 9),
         name: formData.name,
-        email: formData.email,
+        birthDate: formData.birthDate,
         phone: formData.phone,
         registrationDate: formData.registrationDate,
         status: 'Ativo',

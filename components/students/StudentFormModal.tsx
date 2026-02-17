@@ -82,10 +82,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                                 onChange={value => setFormData({ ...formData, name: value })}
                             />
                             <FormInput
-                                type="email"
-                                placeholder="E-mail"
-                                value={formData.email}
-                                onChange={value => setFormData({ ...formData, email: value })}
+                                placeholder="Data de Nascimento"
+                                value={formData.birthDate || ''}
+                                onChange={value => setFormData({ ...formData, birthDate: value })}
+                                icon={<Calendar className="w-4 h-4 text-slate-400" />}
                             />
                             <FormInput
                                 placeholder="Telefone"

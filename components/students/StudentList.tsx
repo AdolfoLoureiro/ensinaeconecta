@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mail, Phone, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Cake, Phone, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { Student } from '../../types';
 
 interface StudentListProps {
@@ -64,7 +64,7 @@ export const StudentList: React.FC<StudentListProps> = ({ students, onSelect, on
                                 </button>
                             </td>
                             <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">
-                                <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{student.email}</div>
+                                <div className="flex items-center gap-1.5"><Cake className="w-3.5 h-3.5" />{student.birthDate || 'N/A'}</div>
                                 <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{student.phone}</div>
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{student.registrationDate}</td>

@@ -43,7 +43,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         {selectedStudent.photo ? <img src={selectedStudent.photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">{selectedStudent.name.charAt(0)}</div>}
                     </div>
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white text-center">{selectedStudent.name}</h3>
-                    <p className="text-xs text-slate-400 mt-1 mb-6">{selectedStudent.email}</p>
+                    <p className="text-xs text-slate-400 mt-1 mb-6">{selectedStudent.birthDate || 'Data de nascimento não informada'}</p>
 
                     <div className="w-full space-y-4">
                         <div className="detail-item"><GraduationCap className="w-4 h-4 text-indigo-500" /><div className="flex-1"><p className="label">Escolaridade</p><p className="value">{selectedStudent.schoolGrade || 'Não informado'}</p></div></div>
