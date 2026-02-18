@@ -99,7 +99,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ isOpen, onClose,
                                 onChange={value => setFormData({ ...formData, maxStudents: value })}
                             />
                         </div>
-                        <div className="col-span-2">
+                        <div className="col-span-2 flex flex-col justify-end">
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">Data e Hora</label>
                             <div className="flex gap-2">
                                 <div className="flex-1">

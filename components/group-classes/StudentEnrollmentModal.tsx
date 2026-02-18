@@ -126,26 +126,26 @@ export const StudentEnrollmentModal: React.FC<StudentEnrollmentModalProps> = ({
 
                     {/* Adicionar Alunos */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                        <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm min-w-0">
                             <h4 className="text-xs font-black uppercase text-indigo-500 mb-3 flex items-center gap-2">
                                 <BookOpen className="w-3 h-3" /> Matriculados
                             </h4>
                             <div className="flex gap-2">
                                 <select
-                                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none dark:text-white"
+                                    className="min-w-0 flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none dark:text-white"
                                     value={selectedStudentId}
                                     onChange={e => setSelectedStudentId(e.target.value)}
                                 >
                                     <option value="">Selecione...</option>
                                     {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
-                                <button onClick={handleAddEnrolledStudent} className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all">
+                                <button onClick={handleAddEnrolledStudent} className="flex-shrink-0 p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all">
                                     <Plus className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                        <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm min-w-0">
                             <h4 className="text-xs font-black uppercase text-amber-500 mb-3 flex items-center gap-2">
                                 <UserPlus className="w-3 h-3" /> Externos
                             </h4>
@@ -153,11 +153,11 @@ export const StudentEnrollmentModal: React.FC<StudentEnrollmentModalProps> = ({
                                 <input
                                     type="text"
                                     placeholder="Nome do aluno..."
-                                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none dark:text-white"
+                                    className="min-w-0 flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none dark:text-white"
                                     value={externalStudentName}
                                     onChange={e => setExternalStudentName(e.target.value)}
                                 />
-                                <button onClick={handleAddExternalStudent} className="p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all">
+                                <button onClick={handleAddExternalStudent} className="flex-shrink-0 p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all">
                                     <Plus className="w-5 h-5" />
                                 </button>
                             </div>
