@@ -23,6 +23,7 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -191,7 +192,11 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
     return { history: studentApts, stats: monthlyStats };
   };
 
-  const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
+  const filteredStudents = students.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
@@ -210,7 +215,13 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
         <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input type="text" placeholder="Pesquisar por nome ou e-mail..." className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-200" />
+            <input
+              type="text"
+              placeholder="Pesquisar por nome..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-200"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
         <StudentList

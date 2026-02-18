@@ -7,9 +7,10 @@ interface ClassFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (groupClass: GroupClass) => void;
+    initialData?: GroupClass;
 }
 
-export const ClassFormModal: React.FC<ClassFormModalProps> = ({ isOpen, onClose, onSave }) => {
+export const ClassFormModal: React.FC<ClassFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
     const [formData, setFormData] = useState({
         subject: '',
         content: '',
@@ -22,11 +23,39 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ isOpen, onClose,
         teacherPayment: ''
     });
 
+    React.useEffect(() => {
+        if (initialData) {
+            setFormData({
+                subject: initialData.subject,
+                content: initialData.content,
+                teacher: initialData.teacher,
+                grade: initialData.grade,
+                maxStudents: initialData.maxStudents.toString(),
+                date: initialData.date,
+                time: initialData.time,
+                costPerStudent: initialData.costPerStudent ? initialData.costPerStudent.toString() : '',
+                teacherPayment: initialData.teacherPayment ? initialData.teacherPayment.toString() : ''
+            });
+        } else {
+            setFormData({
+                subject: '',
+                content: '',
+                teacher: '',
+                grade: '',
+                maxStudents: '20',
+                date: new Date().toLocaleDateString('pt-BR'),
+                time: '14:00',
+                costPerStudent: '',
+                teacherPayment: ''
+            });
+        }
+    }, [initialData, isOpen]);
+
     if (!isOpen) return null;
 
     const handleSave = () => {
         const newClass: GroupClass = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: initialData?.id || Math.random().toString(36).substr(2, 9),
             subject: formData.subject,
             content: formData.content,
             teacher: formData.teacher,
@@ -34,25 +63,13 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ isOpen, onClose,
             maxStudents: Number(formData.maxStudents),
             date: formData.date,
             time: formData.time,
-            students: [],
+            students: initialData?.students || [],
             costPerStudent: formData.costPerStudent ? parseFloat(formData.costPerStudent) : 0,
             teacherPayment: formData.teacherPayment ? parseFloat(formData.teacherPayment) : 0
         };
 
         onSave(newClass);
-
-        // Reset form
-        setFormData({
-            subject: '',
-            content: '',
-            teacher: '',
-            grade: '',
-            maxStudents: '20',
-            date: new Date().toLocaleDateString('pt-BR'),
-            time: '14:00',
-            costPerStudent: '',
-            teacherPayment: ''
-        });
+        onClose();
     };
 
     return (

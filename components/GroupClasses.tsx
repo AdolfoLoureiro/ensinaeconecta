@@ -28,6 +28,7 @@ const GroupClasses: React.FC<GroupClassesProps> = ({
    const [currentDate, setCurrentDate] = useState(new Date());
    const [isAdding, setIsAdding] = useState(false);
    const [managingClass, setManagingClass] = useState<GroupClass | null>(null);
+   const [editingClass, setEditingClass] = useState<GroupClass | null>(null);
 
    const monthLabel = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
    const capitalizedMonthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
@@ -43,9 +44,18 @@ const GroupClasses: React.FC<GroupClassesProps> = ({
       return da - db;
    });
 
-   const handleAddClass = (newClass: GroupClass) => {
-      onAddClass(newClass);
+   const handleSaveClass = (updatedClass: GroupClass) => {
+      if (editingClass) {
+         onUpdateClass(updatedClass);
+         // Se o modal de gestão estiver aberto com esse aulão, atualiza ele também
+         if (managingClass?.id === updatedClass.id) {
+            setManagingClass(updatedClass);
+         }
+      } else {
+         onAddClass(updatedClass);
+      }
       setIsAdding(false);
+      setEditingClass(null);
    };
 
    return (
@@ -56,7 +66,10 @@ const GroupClasses: React.FC<GroupClassesProps> = ({
                <p className="text-slate-500 dark:text-slate-400">Gerencie turmas especiais, revisões e aulas em grupo.</p>
             </div>
             <button
-               onClick={() => setIsAdding(true)}
+               onClick={() => {
+                  setEditingClass(null);
+                  setIsAdding(true);
+               }}
                className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition-all shadow-lg"
             >
                <Plus className="w-5 h-5" />
@@ -78,11 +91,15 @@ const GroupClasses: React.FC<GroupClassesProps> = ({
             capitalizedMonthLabel={capitalizedMonthLabel}
          />
 
-         {/* MODAL: Novo Aulão */}
+         {/* MODAL: Novo / Editar Aulão */}
          <ClassFormModal
             isOpen={isAdding}
-            onClose={() => setIsAdding(false)}
-            onSave={handleAddClass}
+            onClose={() => {
+               setIsAdding(false);
+               setEditingClass(null);
+            }}
+            onSave={handleSaveClass}
+            initialData={editingClass || undefined}
          />
 
          {/* MODAL: Gerenciar Alunos */}
@@ -98,6 +115,10 @@ const GroupClasses: React.FC<GroupClassesProps> = ({
                onDeleteClass={(id) => {
                   onDeleteClass(id);
                   setManagingClass(null);
+               }}
+               onEdit={(gc) => {
+                  setEditingClass(gc);
+                  setIsAdding(true);
                }}
             />
          )}

@@ -7,7 +7,8 @@ import {
     UserPlus,
     Check,
     UserX,
-    Trash2
+    Trash2,
+    Edit2
 } from 'lucide-react';
 import { GroupClass, Student, GroupClassStudent } from '../../types';
 
@@ -17,6 +18,7 @@ interface StudentEnrollmentModalProps {
     onClose: () => void;
     onUpdateClass: (groupClass: GroupClass) => void;
     onDeleteClass: (id: string) => void;
+    onEdit: (groupClass: GroupClass) => void;
 }
 
 export const StudentEnrollmentModal: React.FC<StudentEnrollmentModalProps> = ({
@@ -24,7 +26,8 @@ export const StudentEnrollmentModal: React.FC<StudentEnrollmentModalProps> = ({
     students,
     onClose,
     onUpdateClass,
-    onDeleteClass
+    onDeleteClass,
+    onEdit
 }) => {
     const [selectedStudentId, setSelectedStudentId] = useState('');
     const [externalStudentName, setExternalStudentName] = useState('');
@@ -101,8 +104,17 @@ export const StudentEnrollmentModal: React.FC<StudentEnrollmentModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800 dark:text-white">{classData.subject}</h2>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white">{classData.subject}</h2>
+                            <button
+                                onClick={() => onEdit(classData)}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+                                title="Editar dados do aulão"
+                            >
+                                <Edit2 className="w-5 h-5" />
+                            </button>
+                        </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Gestão de Participantes • {classData.students.length}/{classData.maxStudents} Vagas</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all">
