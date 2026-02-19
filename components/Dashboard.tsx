@@ -10,7 +10,7 @@ import { Student, Appointment, Transaction, View } from '../types';
 import { StatCard } from './shared';
 import { WelcomeBanner } from './dashboard/WelcomeBanner';
 import { QuickActions } from './dashboard/QuickActions';
-import { WeeklyChart } from './dashboard/WeeklyChart';
+import { PaymentPackageAlerts } from './dashboard/PaymentPackageAlerts';
 import { RecentAppointments } from './dashboard/RecentAppointments';
 
 interface DashboardProps {
@@ -73,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, appointments, transacti
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <WeeklyChart />
+        <PaymentPackageAlerts students={students} />
 
         <RecentAppointments appointmentsToday={appointmentsToday} onViewChange={onViewChange} />
       </div>

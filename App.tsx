@@ -230,8 +230,18 @@ const App: React.FC = () => {
 
   const handleUpdateAppointmentStatus = async (id: string, status: Appointment['status']) => {
     try {
+      const apt = appointments.find(a => a.id === id);
+      const student = students.find(s => s.id === apt?.studentId);
+
       await api.appointments.updateStatus(id, status);
       setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+
+      // Se a aula foi concluída, incrementa o contador do aluno
+      if (status === 'Concluído' && student) {
+        const newCount = (student.totalSessionsAttended || 0) + 1;
+        await api.students.updateSessionCount(student.id, newCount);
+        setStudents(prev => prev.map(s => s.id === student.id ? { ...s, totalSessionsAttended: newCount } : s));
+      }
     } catch (err) {
       console.error('Error updating status:', err);
     }
@@ -258,8 +268,15 @@ const App: React.FC = () => {
 
   const handleUpdateTransactionStatus = async (id: string, status: Transaction['status']) => {
     try {
+      const tx = transactions.find(t => t.id === id);
       await api.transactions.updateStatus(id, status);
       setTransactions(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+
+      // Se o pagamento foi recebido, reseta o contador de aulas do aluno
+      if (status === 'Pago' && tx?.studentId) {
+        await api.students.updateSessionCount(tx.studentId, 0);
+        setStudents(prev => prev.map(s => s.id === tx.studentId ? { ...s, totalSessionsAttended: 0 } : s));
+      }
     } catch (err) {
       console.error('Error updating tx status:', err);
     }

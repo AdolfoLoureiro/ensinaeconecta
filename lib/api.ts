@@ -48,6 +48,15 @@ export const api = {
                 .eq('id', id);
 
             if (error) throw error;
+        },
+
+        async updateSessionCount(id: string, count: number): Promise<void> {
+            const { error } = await supabase
+                .from('students')
+                .update({ total_sessions_attended: count })
+                .eq('id', id);
+
+            if (error) throw error;
         }
     },
 
@@ -294,7 +303,8 @@ function mapStudentFromDB(db: any): Student {
         schoolGrade: db.school_grade,
         schoolName: db.school_name,
         schedules: db.schedules,
-        monthlyFee: Number(db.monthly_fee) || 0
+        monthlyFee: Number(db.monthly_fee) || 0,
+        totalSessionsAttended: Number(db.total_sessions_attended) || 0
     };
 }
 
@@ -311,7 +321,8 @@ function mapStudentToDB(student: Omit<Student, 'id'>) {
         school_grade: student.schoolGrade,
         school_name: student.schoolName,
         schedules: student.schedules,
-        monthly_fee: student.monthlyFee
+        monthly_fee: student.monthlyFee,
+        total_sessions_attended: student.totalSessionsAttended
     };
 }
 
