@@ -21,7 +21,7 @@ const Timetable: React.FC<TimetableProps> = ({ timetable }) => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700 h-full flex flex-col">
+    <div className="space-y-3 animate-in fade-in duration-700 h-full flex flex-col">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Cronograma Semanal</h1>
@@ -30,7 +30,7 @@ const Timetable: React.FC<TimetableProps> = ({ timetable }) => {
       </div>
 
       <div className="flex-1 overflow-x-auto pb-4 custom-scrollbar">
-        <div className="flex gap-6 min-w-max px-1">
+        <div className="flex gap-3 min-w-max px-1">
           {days.map((day) => (
             <TimetableColumn
               key={day}

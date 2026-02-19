@@ -18,12 +18,12 @@ export const TimetableColumn: React.FC<TimetableColumnProps> = ({ day, timetable
     const isToday = new Date().toLocaleDateString('pt-BR', { weekday: 'long' }).toLowerCase().includes(day.toLowerCase());
 
     return (
-        <div className={`w-80 flex-shrink-0 flex flex-col rounded-3xl overflow-hidden border transition-colors ${isToday
+        <div className={`w-72 flex-shrink-0 flex flex-col rounded-3xl overflow-hidden border transition-colors ${isToday
             ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-900/50'
             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
             }`}>
             {/* Cabeçalho da Coluna */}
-            <div className={`p-5 border-b ${isToday
+            <div className={`p-3 border-b ${isToday
                 ? 'border-indigo-100 dark:border-indigo-900/30 bg-indigo-100/50 dark:bg-indigo-900/20'
                 : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50'
                 }`}>
@@ -40,7 +40,7 @@ export const TimetableColumn: React.FC<TimetableColumnProps> = ({ day, timetable
             </div>
 
             {/* Lista de Aulas */}
-            <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-[400px]">
+            <div className="p-3 space-y-2 flex-1 overflow-y-auto min-h-[300px]">
                 {dayClasses.length > 0 ? (
                     dayClasses.map((entry, idx) => (
                         <TimetableCard
