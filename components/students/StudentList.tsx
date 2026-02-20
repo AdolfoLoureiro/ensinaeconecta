@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cake, Phone, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Cake, Phone, MoreHorizontal, Edit2, Trash2, FileText } from 'lucide-react';
 import { Student } from '../../types';
 
 interface StudentListProps {
@@ -80,6 +80,16 @@ export const StudentList: React.FC<StudentListProps> = ({ students, onSelect, on
                                 >
                                     <MoreHorizontal className="w-5 h-5" />
                                 </button>
+
+                                {student.notes && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onSelect(student); }}
+                                        className="p-2 text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-90"
+                                        title="Ver Observações"
+                                    >
+                                        <FileText className="w-5 h-5" />
+                                    </button>
+                                )}
 
                                 {menuOpenId === student.id && (
                                     <div

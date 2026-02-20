@@ -304,7 +304,8 @@ function mapStudentFromDB(db: any): Student {
         schoolName: db.school_name,
         schedules: db.schedules,
         monthlyFee: Number(db.monthly_fee) || 0,
-        totalSessionsAttended: Number(db.total_sessions_attended) || 0
+        totalSessionsAttended: Number(db.total_sessions_attended) || 0,
+        notes: db.notes
     };
 }
 
@@ -322,7 +323,8 @@ function mapStudentToDB(student: Omit<Student, 'id'>) {
         school_name: student.schoolName,
         schedules: student.schedules,
         monthly_fee: student.monthlyFee,
-        total_sessions_attended: student.totalSessionsAttended
+        total_sessions_attended: student.totalSessionsAttended,
+        notes: student.notes
     };
 }
 

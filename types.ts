@@ -26,6 +26,7 @@ export interface Student {
   schedules?: ClassSchedule[];
   monthlyFee?: number; // Valor da mensalidade acordada
   totalSessionsAttended?: number; // Total de aulas assistidas no ciclo atual
+  notes?: string;
 }
 
 export interface Appointment {

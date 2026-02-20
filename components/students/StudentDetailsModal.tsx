@@ -9,7 +9,8 @@ import {
     Trash2,
     Edit2,
     CheckCircle2,
-    UserX
+    UserX,
+    FileText
 } from 'lucide-react';
 import { Student, Appointment } from '../../types';
 
@@ -64,6 +65,15 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         </div>
                     )}
 
+                    {selectedStudent.notes && (
+                        <div className="w-full mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Observações</h4>
+                            <div className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic border border-slate-100 dark:border-slate-800">
+                                {selectedStudent.notes}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="w-full mt-auto pt-8">
                         <button
                             onClick={() => onDelete(selectedStudent.id)}
@@ -109,6 +119,19 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                                     <p className="text-3xl font-black text-slate-800 dark:text-white">{stats.missed}</p>
                                 </div>
                             </div>
+
+                            {selectedStudent.notes && (
+                                <div className="bg-amber-50 dark:bg-amber-900/10 p-5 rounded-2xl border border-amber-100 dark:border-amber-900/20 relative overflow-hidden group">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Observações Importantes</span>
+                                    </div>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                                        {selectedStudent.notes}
+                                    </p>
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-amber-500/20 transition-all duration-500"></div>
+                                </div>
+                            )}
 
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-4">Histórico de Aulas</h3>
                             <div className="space-y-3">

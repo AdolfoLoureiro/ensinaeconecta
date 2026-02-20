@@ -40,7 +40,8 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
     guardianCpf: '',
     guardianPhone: '',
     guardianAddress: '',
-    status: 'Ativo' as 'Ativo' | 'Inativo'
+    status: 'Ativo' as 'Ativo' | 'Inativo',
+    notes: ''
   });
 
   const [tempSchedules, setTempSchedules] = useState<ClassSchedule[]>([]);
@@ -77,7 +78,8 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
     setFormData({
       name: '', birthDate: '', phone: '', registrationDate: new Date().toLocaleDateString('pt-BR'), schoolGrade: '', schoolName: '', monthlyFee: '',
       guardianName: '', guardianCpf: '', guardianPhone: '', guardianAddress: '',
-      status: 'Ativo'
+      status: 'Ativo',
+      notes: ''
     });
   };
 
@@ -103,7 +105,8 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
       guardianCpf: student.guardian?.cpf || '',
       guardianPhone: student.guardian?.phone || '',
       guardianAddress: student.guardian?.address || '',
-      status: student.status
+      status: student.status,
+      notes: student.notes || ''
     });
     setPhotoPreview(student.photo || null);
     setTempSchedules(student.schedules || []);
@@ -132,7 +135,8 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
           cpf: formData.guardianCpf,
           phone: formData.guardianPhone,
           address: formData.guardianAddress
-        }
+        },
+        notes: formData.notes
       };
       onUpdate(updatedStudent);
     } else {
@@ -153,7 +157,8 @@ const StudentsArea: React.FC<StudentsAreaProps> = ({ students, appointments, onR
           cpf: formData.guardianCpf,
           phone: formData.guardianPhone,
           address: formData.guardianAddress
-        }
+        },
+        notes: formData.notes
       };
       onRegister(newStudent);
     }
