@@ -256,6 +256,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteAppointment = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+      try {
+        await api.appointments.remove(id);
+        setAppointments(prev => prev.filter(a => a.id !== id));
+      } catch (error) {
+        console.error('Error deleting appointment:', error);
+        alert('Erro ao excluir agendamento.');
+      }
+    }
+  };
+
   const handleAddTransaction = async (tx: Transaction) => {
     try {
       const { id, ...txData } = tx;
@@ -351,7 +363,7 @@ const App: React.FC = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard students={students} appointments={appointments} transactions={transactions} userName={userProfile.name} onViewChange={setCurrentView} legacyMode={useLegacyDashboard} />;
       case 'students': return <StudentsArea students={students} appointments={appointments} onRegister={handleRegisterStudent} onUpdate={handleUpdateStudent} onDelete={handleDeleteStudent} />;
-      case 'scheduling': return <Scheduling appointments={appointments} students={students} onAddAppointment={handleAddAppointment} onUpdateStatus={handleUpdateAppointmentStatus} onUpdateNotes={handleUpdateAppointmentNotes} />;
+      case 'scheduling': return <Scheduling appointments={appointments} students={students} onAddAppointment={handleAddAppointment} onUpdateStatus={handleUpdateAppointmentStatus} onUpdateNotes={handleUpdateAppointmentNotes} onDeleteAppointment={handleDeleteAppointment} />;
       case 'timetable': return <Timetable timetable={timetable} />;
       case 'finance': return <Finance students={students} appointments={appointments} transactions={transactions} userProfile={userProfile} onAddTransaction={handleAddTransaction} onUpdateStatus={handleUpdateTransactionStatus} onDelete={handleDeleteTransaction} />;
       case 'performance': return <Performance students={students} performanceRecords={performanceRecords} onAddPerformance={handleAddPerformance} />;

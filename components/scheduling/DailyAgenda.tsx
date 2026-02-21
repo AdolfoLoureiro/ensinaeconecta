@@ -11,7 +11,8 @@ import {
     StickyNote,
     MessageSquareText,
     CheckCircle2,
-    UserX
+    UserX,
+    Trash2
 } from 'lucide-react';
 import { Appointment } from '../../types';
 
@@ -23,6 +24,7 @@ interface DailyAgendaProps {
     onAddAppointment: () => void;
     onUpdateStatus: (id: string, status: Appointment['status']) => void;
     onOpenNotes: (apt: Appointment) => void;
+    onDeleteAppointment: (id: string) => void;
 }
 
 export const DailyAgenda: React.FC<DailyAgendaProps> = ({
@@ -32,7 +34,8 @@ export const DailyAgenda: React.FC<DailyAgendaProps> = ({
     appointments,
     onAddAppointment,
     onUpdateStatus,
-    onOpenNotes
+    onOpenNotes,
+    onDeleteAppointment
 }) => {
     const formattedDate = currentDate.toLocaleDateString('pt-BR');
 
@@ -135,6 +138,13 @@ export const DailyAgenda: React.FC<DailyAgendaProps> = ({
                                                 title="Marcar Falta"
                                             >
                                                 <UserX className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteAppointment(apt.id)}
+                                                className="p-2.5 bg-white dark:bg-slate-900 text-rose-500 dark:text-rose-400 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all border border-slate-200 dark:border-slate-800"
+                                                title="Excluir Agendamento"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
                                             </button>
                                         </>
                                     )}

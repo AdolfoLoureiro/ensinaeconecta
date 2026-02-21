@@ -12,9 +12,10 @@ interface SchedulingProps {
   onAddAppointment: (apt: Appointment) => void;
   onUpdateStatus: (id: string, status: Appointment['status']) => void;
   onUpdateNotes: (id: string, notes: string) => void;
+  onDeleteAppointment: (id: string) => void;
 }
 
-const Scheduling: React.FC<SchedulingProps> = ({ appointments, students, onAddAppointment, onUpdateStatus, onUpdateNotes }) => {
+const Scheduling: React.FC<SchedulingProps> = ({ appointments, students, onAddAppointment, onUpdateStatus, onUpdateNotes, onDeleteAppointment }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notingAptId, setNotingAptId] = useState<string | null>(null);
@@ -93,6 +94,7 @@ const Scheduling: React.FC<SchedulingProps> = ({ appointments, students, onAddAp
             onAddAppointment={() => setIsAdding(true)}
             onUpdateStatus={onUpdateStatus}
             onOpenNotes={(apt) => setNotingAptId(apt.id)}
+            onDeleteAppointment={onDeleteAppointment}
           />
         </div>
       </div>
