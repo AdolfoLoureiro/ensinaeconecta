@@ -189,14 +189,36 @@ export const api = {
         },
         async update(gc: GroupClass): Promise<GroupClass> {
             const { students, ...classData } = gc;
-            const { data, error } = await supabase
+            // 1. Atualizar dados básicos do aulão
+            const { error: classError } = await supabase
                 .from('group_classes')
                 .update(mapGroupClassToDB(classData))
-                .eq('id', gc.id)
-                .select()
-                .single();
+                .eq('id', gc.id);
 
-            if (error) throw error;
+            if (classError) throw classError;
+
+            // 2. Sincronizar participantes (Delete e Re-insert para garantir consistência)
+            const { error: deleteError } = await supabase
+                .from('group_class_enrollments')
+                .delete()
+                .eq('class_id', gc.id);
+
+            if (deleteError) throw deleteError;
+
+            if (students.length > 0) {
+                const { error: enrollError } = await supabase
+                    .from('group_class_enrollments')
+                    .insert(students.map(s => ({
+                        class_id: gc.id,
+                        student_id: s.isExternal ? null : s.id,
+                        student_name: s.name,
+                        is_external: s.isExternal,
+                        attendance: s.attendance
+                    })));
+
+                if (enrollError) throw enrollError;
+            }
+
             return gc;
         },
         async remove(id: string): Promise<void> {
@@ -412,7 +434,7 @@ function mapGroupClassToDB(gc: any) {
 
 function mapEnrollmentFromDB(db: any): GroupClassStudent {
     return {
-        id: db.student_id,
+        id: db.student_id || db.id, // Fallback para ID da matrícula se for externo
         name: db.student_name,
         isExternal: db.is_external,
         attendance: db.attendance
