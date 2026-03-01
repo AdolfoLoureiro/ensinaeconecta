@@ -97,88 +97,95 @@ const App: React.FC = () => {
   }, [session]);
 
   // --- AUTOMATIC SCHEDULING LOGIC ---
+  const isGeneratingRef = React.useRef(false);
+
   useEffect(() => {
     const checkAndExtendSchedules = async () => {
-      const daysOfWeekMap: Record<string, number> = { 'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 };
-      const now = new Date();
+      if (loading || isGeneratingRef.current || students.length === 0) return;
 
-      let newAppointmentsToAdd: Omit<Appointment, 'id'>[] = [];
-      const colors = ['bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
+      isGeneratingRef.current = true;
+      try {
+        const daysOfWeekMap: Record<string, number> = { 'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 };
+        const now = new Date();
 
-      students.forEach(student => {
-        if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) return;
+        let newAppointmentsToAdd: Omit<Appointment, 'id'>[] = [];
+        const colors = ['bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
 
-        // Process color for timetable
-        const colorIndex = parseInt(student.id.replace(/\D/g, '') || '0') % colors.length;
-        const baseColor = colors[colorIndex];
-        const fullColor = `${baseColor.split(' ')[0]} dark:${baseColor.split(' ')[0].replace('100', '900/40')} ${baseColor.split(' ')[1]} dark:${baseColor.split(' ')[1].replace('700', '300')}`;
+        students.forEach(student => {
+          if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) return;
 
-        // Ensure student has timetable entries (idempotent)
-        setTimetable(prev => {
-          const studentEntries = prev.filter(t => t.studentId === student.id);
-          if (studentEntries.length === (student.schedules?.length || 0)) return prev;
+          // Process color for timetable
+          const colorIndex = parseInt(student.id.replace(/\D/g, '') || '0') % colors.length;
+          const baseColor = colors[colorIndex];
+          const fullColor = `${baseColor.split(' ')[0]} dark:${baseColor.split(' ')[0].replace('100', '900/40')} ${baseColor.split(' ')[1]} dark:${baseColor.split(' ')[1].replace('700', '300')}`;
 
-          const filteredPrev = prev.filter(t => t.studentId !== student.id);
-          const newEntries: TimetableEntry[] = (student.schedules || []).map(s => ({
-            studentId: student.id,
-            day: s.day,
-            hour: s.time,
-            studentName: student.name.split(' ')[0],
-            color: fullColor,
-            photo: student.photo
-          }));
-          return [...filteredPrev, ...newEntries];
-        });
+          // Ensure student has timetable entries (idempotent)
+          setTimetable(prev => {
+            const studentEntries = prev.filter(t => t.studentId === student.id);
+            if (studentEntries.length === (student.schedules?.length || 0)) return prev;
 
-        // Find existing appointments to avoid duplication
-        const existingAptKeys = new Set(
-          appointments
-            .filter(a => a.studentId === student.id)
-            .map(a => `${a.date}-${a.time}`)
-        );
+            const filteredPrev = prev.filter(t => t.studentId !== student.id);
+            const newEntries: TimetableEntry[] = (student.schedules || []).map(s => ({
+              studentId: student.id,
+              day: s.day,
+              hour: s.time,
+              studentName: student.name.split(' ')[0],
+              color: fullColor,
+              photo: student.photo
+            }));
+            return [...filteredPrev, ...newEntries];
+          });
 
-        (student.schedules || []).forEach(s => {
-          const targetDay = daysOfWeekMap[s.day];
-          for (let i = 0; i < 90; i++) {
-            const dateObj = new Date(now);
-            dateObj.setDate(now.getDate() + i);
+          // Find existing appointments to avoid duplication
+          const existingAptKeys = new Set(
+            appointments
+              .filter(a => a.studentId === student.id)
+              .map(a => `${a.date}-${a.time}`)
+          );
 
-            if (dateObj.getDay() === targetDay) {
-              const dateStr = dateObj.toLocaleDateString('pt-BR');
-              const aptKey = `${dateStr}-${s.time}`;
+          (student.schedules || []).forEach(s => {
+            const targetDay = daysOfWeekMap[s.day];
+            for (let i = 0; i < 90; i++) {
+              const dateObj = new Date(now);
+              dateObj.setDate(now.getDate() + i);
 
-              if (!existingAptKeys.has(aptKey)) {
-                newAppointmentsToAdd.push({
-                  studentId: student.id,
-                  studentName: student.name,
-                  date: dateStr,
-                  time: s.time,
-                  subject: 'Aula Regular',
-                  status: 'Agendado'
-                });
-                existingAptKeys.add(aptKey);
+              if (dateObj.getDay() === targetDay) {
+                const dateStr = dateObj.toLocaleDateString('pt-BR');
+                const aptKey = `${dateStr}-${s.time}`;
+
+                if (!existingAptKeys.has(aptKey)) {
+                  newAppointmentsToAdd.push({
+                    studentId: student.id,
+                    studentName: student.name,
+                    date: dateStr,
+                    time: s.time,
+                    subject: 'Aula Regular',
+                    status: 'Agendado'
+                  });
+                  existingAptKeys.add(aptKey);
+                }
               }
             }
-          }
+          });
         });
-      });
 
-      if (newAppointmentsToAdd.length > 0) {
-        try {
-          console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
-          const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
-          setAppointments(prev => [...prev, ...savedApts]);
-        } catch (error) {
-          console.error('Erro ao salvar agendamentos automáticos:', error);
+        if (newAppointmentsToAdd.length > 0) {
+          try {
+            console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
+            const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
+            setAppointments(prev => [...prev, ...savedApts]);
+          } catch (error) {
+            console.error('Erro ao salvar agendamentos automáticos:', error);
+          }
         }
+      } finally {
+        isGeneratingRef.current = false;
       }
     };
 
-    if (students.length > 0) {
-      const timer = setTimeout(checkAndExtendSchedules, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [students]);
+    const timer = setTimeout(checkAndExtendSchedules, 1000);
+    return () => clearTimeout(timer);
+  }, [students, loading]);
 
   const handleRegisterStudent = async (newStudent: Student) => {
     try {
