@@ -15,6 +15,7 @@ import {
     Trash2
 } from 'lucide-react';
 import { Appointment } from '../../types';
+import { formatDate } from '../../lib/utils';
 
 interface DailyAgendaProps {
     currentDate: Date;
@@ -37,7 +38,7 @@ export const DailyAgenda: React.FC<DailyAgendaProps> = ({
     onOpenNotes,
     onDeleteAppointment
 }) => {
-    const formattedDate = currentDate.toLocaleDateString('pt-BR');
+    const formattedDate = formatDate(currentDate);
 
     // Filter appointments for the "current" view and sort by time
     const dailyAppointments = appointments

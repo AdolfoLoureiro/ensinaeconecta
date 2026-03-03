@@ -5,6 +5,7 @@ import { CalendarPanel } from './scheduling/CalendarPanel';
 import { DailyAgenda } from './scheduling/DailyAgenda';
 import { AppointmentFormModal } from './scheduling/AppointmentFormModal';
 import { AppointmentNotesModal } from './scheduling/AppointmentNotesModal';
+import { formatDate } from '../lib/utils';
 
 interface SchedulingProps {
   appointments: Appointment[];
@@ -20,7 +21,7 @@ const Scheduling: React.FC<SchedulingProps> = ({ appointments, students, onAddAp
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notingAptId, setNotingAptId] = useState<string | null>(null);
 
-  const formattedDate = currentDate.toLocaleDateString('pt-BR');
+  const formattedDate = formatDate(currentDate);
 
   const handlePrevDay = () => {
     const prev = new Date(currentDate);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Appointment } from '../../types';
+import { formatDate } from '../../lib/utils';
 
 interface CalendarPanelProps {
     currentDate: Date;
@@ -21,7 +22,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({ currentDate, onDat
     const monthName = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     const hasAppointmentOnDay = (day: number) => {
-        const checkDate = new Date(year, month, day).toLocaleDateString('pt-BR');
+        const checkDate = formatDate(new Date(year, month, day));
         return appointments.some(a => a.date === checkDate && a.status !== 'Faltou');
     };
 
@@ -71,7 +72,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({ currentDate, onDat
     };
 
     // Stats for the selected day
-    const formattedDate = currentDate.toLocaleDateString('pt-BR');
+    const formattedDate = formatDate(currentDate);
     const dailyAppointments = appointments.filter(a => a.date === formattedDate);
     const completedCount = dailyAppointments.filter(a => a.status === 'Concluído').length;
 

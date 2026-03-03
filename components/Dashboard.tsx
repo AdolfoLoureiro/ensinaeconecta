@@ -12,6 +12,7 @@ import { WelcomeBanner } from './dashboard/WelcomeBanner';
 import { QuickActions } from './dashboard/QuickActions';
 import { PaymentPackageAlerts } from './dashboard/PaymentPackageAlerts';
 import { RecentAppointments } from './dashboard/RecentAppointments';
+import { formatDate } from '../lib/utils';
 
 interface DashboardProps {
   students: Student[];
@@ -23,7 +24,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ students, appointments, transactions, userName, onViewChange, legacyMode }) => {
-  const today = new Date().toLocaleDateString('pt-BR');
+  const today = formatDate(new Date());
   const appointmentsToday = appointments.filter(a => a.date === today);
   const totalReceived = transactions.filter(t => t.status === 'Pago').reduce((acc, t) => acc + t.amount, 0);
 

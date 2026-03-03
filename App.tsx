@@ -13,6 +13,7 @@ import { ProfileModal, UserProfile } from './components/profile/ProfileModal';
 import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
 import { api } from './lib/api';
+import { formatDate } from './lib/utils';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -137,10 +138,12 @@ const App: React.FC = () => {
           });
 
           // Find existing appointments to avoid duplication
-          const existingAptKeys = new Set(
-            appointments
-              .filter(a => a.studentId === student.id)
-              .map(a => `${a.date}-${a.time}`)
+          const studentApts = appointments.filter(a => a.studentId === student.id);
+          const existingAptKeys = new Set(studentApts.map(a => `${a.date}-${a.time}`));
+          const regularAptDates = new Set(
+            studentApts
+              .filter(a => a.subject === 'Aula Regular')
+              .map(a => a.date)
           );
 
           (student.schedules || []).forEach(s => {
@@ -150,10 +153,16 @@ const App: React.FC = () => {
               dateObj.setDate(now.getDate() + i);
 
               if (dateObj.getDay() === targetDay) {
-                const dateStr = dateObj.toLocaleDateString('pt-BR');
+                const dateStr = formatDate(dateObj);
                 const aptKey = `${dateStr}-${s.time}`;
 
-                if (!existingAptKeys.has(aptKey)) {
+                // Prevenção de duplicatas exatas E de "fantasmas"
+                // Se o aluno já tem uma "Aula Regular" no dia, mas em horário diferente, 
+                // não criamos a nova automaticamente para evitar bagunça se o horário mudou.
+                const hasAnyRegularOnDay = regularAptDates.has(dateStr);
+                const isExactDuplicate = existingAptKeys.has(aptKey);
+
+                if (!isExactDuplicate && !hasAnyRegularOnDay) {
                   newAppointmentsToAdd.push({
                     studentId: student.id,
                     studentName: student.name,
@@ -163,6 +172,7 @@ const App: React.FC = () => {
                     status: 'Agendado'
                   });
                   existingAptKeys.add(aptKey);
+                  regularAptDates.add(dateStr);
                 }
               }
             }
