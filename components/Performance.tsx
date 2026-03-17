@@ -24,18 +24,70 @@ interface PerformanceProps {
   onAddPerformance: (record: PerformanceRecord) => void;
 }
 
-const evolutionData = [
-  { name: 'Jan', media: 6.5 },
-  { name: 'Fev', media: 7.2 },
-  { name: 'Mar', media: 7.0 },
-  { name: 'Abr', media: 8.5 },
-  { name: 'Mai', media: 8.8 },
-  { name: 'Jun', media: 9.2 },
-];
 
 const Performance: React.FC<PerformanceProps> = ({ students, performanceRecords, onAddPerformance }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [viewingStudentId, setViewingStudentId] = useState<string | null>(null);
+
+  // Calcular dados reais para o gráfico de evolução
+  const getEvolutionData = () => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const currentMonthIndex = new Date().getMonth();
+    const last6Months = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const monthIdx = (currentMonthIndex - i + 12) % 12;
+      last6Months.push(months[monthIdx]);
+    }
+
+    return last6Months.map(month => {
+      const recordsInMonth = performanceRecords.filter(r => {
+        const [day, monthStr] = r.date.split('/');
+        const monthNum = parseInt(monthStr, 10) - 1;
+        return months[monthNum] === month;
+      });
+
+      if (recordsInMonth.length === 0) return { name: month, media: 0 };
+
+      const average = recordsInMonth.reduce((acc, curr) => {
+        return acc + (curr.score / curr.maxScore) * 10;
+      }, 0) / recordsInMonth.length;
+
+      return { name: month, media: Number(average.toFixed(1)) };
+    });
+  };
+
+  const dynamicEvolutionData = getEvolutionData();
+
+  // Calcular destaques do mês (alunos com maiores médias/notas no mês atual)
+  const getHighlights = () => {
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    
+    // Agrupar notas por aluno
+    const studentGrades: Record<string, { name: string; total: number; count: number }> = {};
+    
+    performanceRecords.forEach(record => {
+      const [_, monthStr] = record.date.split('/');
+      if (monthStr === currentMonth) {
+        if (!studentGrades[record.studentId]) {
+          studentGrades[record.studentId] = { name: record.studentName, total: 0, count: 0 };
+        }
+        studentGrades[record.studentId].total += (record.score / record.maxScore) * 10;
+        studentGrades[record.studentId].count += 1;
+      }
+    });
+
+    return Object.values(studentGrades)
+      .map(s => ({
+        name: s.name,
+        score: Number((s.total / s.count).toFixed(1)),
+        img: `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  };
+
+  const highlights = getHighlights();
 
   const handleAddPerformance = (newRecord: PerformanceRecord) => {
     onAddPerformance(newRecord);
@@ -65,9 +117,9 @@ const Performance: React.FC<PerformanceProps> = ({ students, performanceRecords,
               <button className="px-3 py-1.5 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg">Mensal</button>
             </div>
           </div>
-          <div className="h-80">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={evolutionData} barSize={40}>
+              <BarChart data={dynamicEvolutionData} barSize={40}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={10} />
                 <YAxis domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} />
@@ -102,22 +154,24 @@ const Performance: React.FC<PerformanceProps> = ({ students, performanceRecords,
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
             <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Destaques do Mês</h4>
             <div className="space-y-4">
-              {[
-                { name: 'Ana Beatriz', score: 9.8, img: 'https://i.pravatar.cc/150?u=1' },
-                { name: 'Juliana Mendes', score: 9.5, img: 'https://i.pravatar.cc/150?u=2' },
-                { name: 'Rodrigo Paes', score: 9.2, img: 'https://i.pravatar.cc/150?u=3' },
-              ].map((student, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={student.img} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{student.name}</span>
+              {highlights.length > 0 ? (
+                highlights.map((student, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={student.img} className="w-10 h-10 rounded-full object-cover shadow-sm bg-slate-100" alt="" />
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{student.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                      <Award className="w-4 h-4" />
+                      {student.score}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                    <Award className="w-4 h-4" />
-                    {student.score}
-                  </div>
+                ))
+              ) : (
+                <div className="py-2 text-center">
+                  <p className="text-xs text-slate-400 italic">Sem registros este mês</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
