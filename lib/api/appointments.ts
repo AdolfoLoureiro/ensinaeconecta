@@ -47,6 +47,10 @@ export const appointmentsApi = {
         const { error } = await supabase.from('appointments').delete().eq('id', id);
         if (error) throw error;
     },
+    async removeMany(ids: string[]): Promise<void> {
+        const { error } = await supabase.from('appointments').delete().in('id', ids);
+        if (error) throw error;
+    },
     async updateStatus(id: string, status: Appointment['status']): Promise<void> {
         const { error } = await supabase
             .from('appointments')

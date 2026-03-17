@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Student, Appointment, TimetableEntry } from '../types';
 import { api } from '../lib/api';
-import { formatDate } from '../lib/utils';
+import { formatDate, parseFormattedDate } from '../lib/utils';
 
 interface UseAutomaticSchedulingProps {
     students: Student[];
@@ -32,6 +32,11 @@ export const useAutomaticScheduling = ({
                 const now = new Date();
 
                 let newAppointmentsToAdd: Omit<Appointment, 'id'>[] = [];
+                let allAppointmentsToDelete: string[] = [];
+                let currentAppointmentsState = [...appointments];
+                const todayStr = formatDate(now);
+                const todayDate = parseFormattedDate(todayStr).getTime();
+
                 const colors = [
                     'bg-indigo-100 text-indigo-700', 
                     'bg-emerald-100 text-emerald-700', 
@@ -39,6 +44,29 @@ export const useAutomaticScheduling = ({
                     'bg-rose-100 text-rose-700'
                 ];
 
+                // Passo 1: Limpar agendamentos futuros que não batem mais com o horário atual
+                students.forEach(student => {
+                    if (student.status !== 'Ativo') return;
+
+                    const studentApts = currentAppointmentsState.filter(a => a.studentId === student.id);
+                    
+                    const outdated = studentApts.filter(a => {
+                        if (a.subject !== 'Aula Regular' || a.status !== 'Agendado') return false;
+                        const aptDate = parseFormattedDate(a.date);
+                        if (aptDate.getTime() < todayDate) return false;
+
+                        const dayName = Object.keys(daysOfWeekMap).find(key => daysOfWeekMap[key] === aptDate.getDay());
+                        return !(student.schedules || []).some(s => s.day === dayName && s.time === a.time);
+                    });
+
+                    if (outdated.length > 0) {
+                        const ids = outdated.map(a => a.id);
+                        allAppointmentsToDelete.push(...ids);
+                        currentAppointmentsState = currentAppointmentsState.filter(a => !ids.includes(a.id));
+                    }
+                });
+
+                // Passo 2: Adicionar novos agendamentos conforme o horário atual
                 students.forEach(student => {
                     if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) return;
 
@@ -62,7 +90,7 @@ export const useAutomaticScheduling = ({
                         return [...filteredPrev, ...newEntries];
                     });
 
-                    const studentApts = appointments.filter(a => a.studentId === student.id);
+                    const studentApts = currentAppointmentsState.filter(a => a.studentId === student.id);
                     const existingAptKeys = new Set(studentApts.map(a => `${a.date}-${a.time}`));
                     const regularAptDates = new Set(
                         studentApts
@@ -100,13 +128,26 @@ export const useAutomaticScheduling = ({
                     });
                 });
 
-                if (newAppointmentsToAdd.length > 0) {
+                // Executar operações no banco (se necessário)
+                if (allAppointmentsToDelete.length > 0 || newAppointmentsToAdd.length > 0) {
                     try {
-                        console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
-                        const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
-                        setAppointments(prev => [...prev, ...savedApts]);
+                        let updatedList = [...appointments];
+
+                        if (allAppointmentsToDelete.length > 0) {
+                            console.log(`Sistema: Removendo ${allAppointmentsToDelete.length} agendamentos desatualizados.`);
+                            await api.appointments.removeMany(allAppointmentsToDelete);
+                            updatedList = updatedList.filter(a => !allAppointmentsToDelete.includes(a.id));
+                        }
+
+                        if (newAppointmentsToAdd.length > 0) {
+                            console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
+                            const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
+                            updatedList = [...updatedList, ...savedApts];
+                        }
+
+                        setAppointments(updatedList);
                     } catch (error) {
-                        console.error('Erro ao salvar agendamentos automáticos:', error);
+                        console.error('Erro na sincronização automática de agendamentos:', error);
                     }
                 }
             } finally {
