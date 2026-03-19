@@ -68,11 +68,18 @@ export const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({ isOp
                             value={newApt.time}
                             onChange={value => setNewApt({ ...newApt, time: value })}
                         />
-                        <FormInput
+                        <FormSelect
                             label="Assunto"
-                            placeholder="Ex: Reforço"
+                            placeholder="Selecione o assunto..."
                             value={newApt.subject}
                             onChange={value => setNewApt({ ...newApt, subject: value })}
+                            options={[
+                                { value: 'Aula Regular', label: 'Aula Regular' },
+                                { value: 'Aula Avulsa', label: 'Aula Avulsa' },
+                                { value: 'Reposição', label: 'Reposição' },
+                                { value: 'Avaliação', label: 'Avaliação' },
+                                { value: 'Simulado', label: 'Simulado' }
+                            ]}
                         />
                     </div>
                 </div>

@@ -53,7 +53,7 @@ export const useAutomaticScheduling = ({
                     const outdated = studentApts.filter(a => {
                         if (a.subject !== 'Aula Regular' || a.status !== 'Agendado') return false;
                         const aptDate = parseFormattedDate(a.date);
-                        if (aptDate.getTime() < todayDate) return false;
+                        if (aptDate.getTime() <= todayDate) return false;
 
                         const dayName = Object.keys(daysOfWeekMap).find(key => daysOfWeekMap[key] === aptDate.getDay());
                         return !(student.schedules || []).some(s => s.day === dayName && s.time === a.time);
