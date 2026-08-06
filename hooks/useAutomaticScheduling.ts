@@ -75,9 +75,21 @@ export const useAutomaticScheduling = ({
                     }
                 });
 
+                // [DIAGNÓSTICO] Resumo dos alunos ativos e seus schedules
+                console.log('[Agendamento] === INÍCIO DA GERAÇÃO ===');
+                console.log(`[Agendamento] Total de alunos: ${students.length}`);
+                students.forEach(s => {
+                    console.log(`[Agendamento] Aluno: "${s.name}" | status="${s.status}" | schedules=`, JSON.stringify(s.schedules));
+                });
+
                 // Passo 2: Adicionar novos agendamentos conforme o horário atual
                 students.forEach(student => {
-                    if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) return;
+                    if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) {
+                        console.log(`[Agendamento] Pulando "${student.name}": status=${student.status}, schedules=`, student.schedules);
+                        return;
+                    }
+
+                    console.log(`[Agendamento] Processando "${student.name}" com ${student.schedules.length} horário(s):`, student.schedules);
 
                     const colorIndex = parseInt(student.id.replace(/\D/g, '') || '0') % colors.length;
                     const baseColor = colors[colorIndex];
@@ -104,8 +116,15 @@ export const useAutomaticScheduling = ({
                     // sem bloquear múltiplos horários no mesmo dia
                     const existingAptKeys = new Set(studentApts.map(a => `${a.date}-${a.time}`));
 
+                    console.log(`[Agendamento] "${student.name}" já tem ${studentApts.length} agendamento(s) existente(s).`);
+
                     (student.schedules || []).forEach(s => {
                         const targetDay = daysOfWeekMap[s.day];
+                        if (targetDay === undefined) {
+                            console.warn(`[Agendamento] Dia "${s.day}" não reconhecido para aluno "${student.name}"!`);
+                            return;
+                        }
+                        let countForThisSchedule = 0;
                         for (let i = 0; i < 90; i++) {
                             const dateObj = new Date(now);
                             dateObj.setDate(now.getDate() + i);
@@ -126,11 +145,15 @@ export const useAutomaticScheduling = ({
                                         status: 'Agendado'
                                     });
                                     existingAptKeys.add(aptKey);
+                                    countForThisSchedule++;
                                 }
                             }
                         }
+                        console.log(`[Agendamento] "${student.name}" - ${s.day} ${s.time}: ${countForThisSchedule} novo(s) agendamento(s) a criar.`);
                     });
                 });
+
+                console.log(`[Agendamento] Total: ${newAppointmentsToAdd.length} a criar, ${allAppointmentsToDelete.length} a deletar.`);
 
                 // Executar operações no banco (se necessário)
                 if (allAppointmentsToDelete.length > 0 || newAppointmentsToAdd.length > 0) {
@@ -147,12 +170,13 @@ export const useAutomaticScheduling = ({
                         if (newAppointmentsToAdd.length > 0) {
                             console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
                             const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
+                            console.log(`[Agendamento] Salvos com sucesso: ${savedApts.length} agendamentos.`);
                             updatedList = [...updatedList, ...savedApts];
                         }
 
                         setAppointments(updatedList);
                     } catch (error) {
-                        console.error('Erro na sincronização automática de agendamentos:', error);
+                        console.error('[Agendamento] ERRO na sincronização automática:', error);
                     }
                 }
             } finally {

@@ -23,14 +23,39 @@ export const appointmentsApi = {
         return mapAppointmentFromDB(data);
     },
     async createMany(apts: Omit<Appointment, 'id'>[]): Promise<Appointment[]> {
+        if (apts.length === 0) return [];
         const dbApts = apts.map(mapAppointmentToDB);
+        
+        // Tenta inserir todos de uma vez (lote)
         const { data, error } = await supabase
             .from('appointments')
             .insert(dbApts)
             .select();
 
-        if (error) throw error;
-        return data.map(mapAppointmentFromDB);
+        if (!error && data) {
+            return data.map(mapAppointmentFromDB);
+        }
+
+        // Se falhar (ex: conflito 409), insere um por um para não perder os válidos
+        console.warn('[API] Falha no insert em lote (possível duplicata). Inserindo um a um...', error);
+        const successfulApts: Appointment[] = [];
+        
+        for (const dbApt of dbApts) {
+            const { data: singleData, error: singleError } = await supabase
+                .from('appointments')
+                .insert(dbApt)
+                .select()
+                .single();
+                
+            if (!singleError && singleData) {
+                successfulApts.push(mapAppointmentFromDB(singleData));
+            } else if (singleError?.code !== '23505') { 
+                // Loga apenas se NÃO for erro de duplicata
+                console.error(`[API] Erro ao salvar agendamento de ${dbApt.student_name} (${dbApt.date} ${dbApt.time}):`, singleError);
+            }
+        }
+        
+        return successfulApts;
     },
     async update(apt: Appointment): Promise<Appointment> {
         const { data, error } = await supabase
