@@ -19,12 +19,21 @@ export const useAutomaticScheduling = ({
     setTimetable
 }: UseAutomaticSchedulingProps) => {
     const isGeneratingRef = useRef(false);
+    // FIX: flag para re-executar caso um novo aluno tenha chegado enquanto geração estava em andamento
+    const needsRetryRef = useRef(false);
 
     useEffect(() => {
         const checkAndExtendSchedules = async () => {
-            if (loading || isGeneratingRef.current || students.length === 0) return;
+            if (loading || students.length === 0) return;
+
+            // FIX: se já está gerando, sinaliza que precisa de uma nova rodada ao terminar
+            if (isGeneratingRef.current) {
+                needsRetryRef.current = true;
+                return;
+            }
 
             isGeneratingRef.current = true;
+            needsRetryRef.current = false;
             try {
                 const daysOfWeekMap: Record<string, number> = { 
                     'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 
@@ -91,12 +100,9 @@ export const useAutomaticScheduling = ({
                     });
 
                     const studentApts = currentAppointmentsState.filter(a => a.studentId === student.id);
+                    // FIX: usar apenas chaves exatas (data+hora) para evitar duplicatas,
+                    // sem bloquear múltiplos horários no mesmo dia
                     const existingAptKeys = new Set(studentApts.map(a => `${a.date}-${a.time}`));
-                    const regularAptDates = new Set(
-                        studentApts
-                            .filter(a => a.subject === 'Aula Regular')
-                            .map(a => a.date)
-                    );
 
                     (student.schedules || []).forEach(s => {
                         const targetDay = daysOfWeekMap[s.day];
@@ -108,10 +114,9 @@ export const useAutomaticScheduling = ({
                                 const dateStr = formatDate(dateObj);
                                 const aptKey = `${dateStr}-${s.time}`;
 
-                                const hasAnyRegularOnDay = regularAptDates.has(dateStr);
-                                const isExactDuplicate = existingAptKeys.has(aptKey);
-
-                                if (!isExactDuplicate && !hasAnyRegularOnDay) {
+                                // FIX: verificar apenas duplicata exata (mesma data E mesmo horário),
+                                // permitindo múltiplos horários de um aluno no mesmo dia
+                                if (!existingAptKeys.has(aptKey)) {
                                     newAppointmentsToAdd.push({
                                         studentId: student.id,
                                         studentName: student.name,
@@ -121,7 +126,6 @@ export const useAutomaticScheduling = ({
                                         status: 'Agendado'
                                     });
                                     existingAptKeys.add(aptKey);
-                                    regularAptDates.add(dateStr);
                                 }
                             }
                         }
@@ -131,12 +135,13 @@ export const useAutomaticScheduling = ({
                 // Executar operações no banco (se necessário)
                 if (allAppointmentsToDelete.length > 0 || newAppointmentsToAdd.length > 0) {
                     try {
-                        let updatedList = [...appointments];
+                        // FIX: usar currentAppointmentsState (com exclusões já aplicadas) em vez
+                        // do closure antigo de appointments
+                        let updatedList = [...currentAppointmentsState];
 
                         if (allAppointmentsToDelete.length > 0) {
                             console.log(`Sistema: Removendo ${allAppointmentsToDelete.length} agendamentos desatualizados.`);
                             await api.appointments.removeMany(allAppointmentsToDelete);
-                            updatedList = updatedList.filter(a => !allAppointmentsToDelete.includes(a.id));
                         }
 
                         if (newAppointmentsToAdd.length > 0) {
@@ -152,6 +157,11 @@ export const useAutomaticScheduling = ({
                 }
             } finally {
                 isGeneratingRef.current = false;
+                // FIX: se um novo aluno chegou durante a geração, aguarda e re-executa
+                if (needsRetryRef.current) {
+                    needsRetryRef.current = false;
+                    setTimeout(checkAndExtendSchedules, 500);
+                }
             }
         };
 
