@@ -14,7 +14,11 @@ export const studentsApi = {
     },
 
     async create(student: Omit<Student, 'id'>): Promise<Student> {
-        const dbStudent = mapStudentToDB(student);
+        const { data: { user } } = await supabase.auth.getUser();
+        const dbStudent = {
+            ...mapStudentToDB(student),
+            ...(user?.id ? { user_id: user.id } : {})
+        };
         const { data, error } = await supabase
             .from('students')
             .insert(dbStudent)

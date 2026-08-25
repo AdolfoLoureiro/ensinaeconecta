@@ -13,9 +13,14 @@ export const appointmentsApi = {
         return data.map(mapAppointmentFromDB);
     },
     async create(apt: Omit<Appointment, 'id'>): Promise<Appointment> {
+        const { data: { user } } = await supabase.auth.getUser();
+        const dbApt = {
+            ...mapAppointmentToDB(apt),
+            ...(user?.id ? { user_id: user.id } : {})
+        };
         const { data, error } = await supabase
             .from('appointments')
-            .insert(mapAppointmentToDB(apt))
+            .insert(dbApt)
             .select()
             .single();
 
@@ -24,38 +29,24 @@ export const appointmentsApi = {
     },
     async createMany(apts: Omit<Appointment, 'id'>[]): Promise<Appointment[]> {
         if (apts.length === 0) return [];
-        const dbApts = apts.map(mapAppointmentToDB);
+        const { data: { user } } = await supabase.auth.getUser();
+        const dbApts = apts.map(apt => ({
+            ...mapAppointmentToDB(apt),
+            ...(user?.id ? { user_id: user.id } : {})
+        }));
         
-        // Tenta inserir todos de uma vez (lote)
+        // Usar upsert com ignoreDuplicates: true para evitar status HTTP 409 no PostgREST/Console
         const { data, error } = await supabase
             .from('appointments')
-            .insert(dbApts)
+            .upsert(dbApts, { ignoreDuplicates: true })
             .select();
 
-        if (!error && data) {
-            return data.map(mapAppointmentFromDB);
+        if (error) {
+            console.error('[API] Erro ao salvar agendamentos:', error);
+            throw error;
         }
 
-        // Se falhar (ex: conflito 409), insere um por um para não perder os válidos
-        console.warn('[API] Falha no insert em lote (possível duplicata). Inserindo um a um...', error);
-        const successfulApts: Appointment[] = [];
-        
-        for (const dbApt of dbApts) {
-            const { data: singleData, error: singleError } = await supabase
-                .from('appointments')
-                .insert(dbApt)
-                .select()
-                .single();
-                
-            if (!singleError && singleData) {
-                successfulApts.push(mapAppointmentFromDB(singleData));
-            } else if (singleError?.code !== '23505') { 
-                // Loga apenas se NÃO for erro de duplicata
-                console.error(`[API] Erro ao salvar agendamento de ${dbApt.student_name} (${dbApt.date} ${dbApt.time}):`, singleError);
-            }
-        }
-        
-        return successfulApts;
+        return (data || []).map(mapAppointmentFromDB);
     },
     async update(apt: Appointment): Promise<Appointment> {
         const { data, error } = await supabase

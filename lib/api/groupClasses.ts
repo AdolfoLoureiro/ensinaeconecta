@@ -25,10 +25,15 @@ export const groupClassesApi = {
         }));
     },
     async create(gc: Omit<GroupClass, 'id'>): Promise<GroupClass> {
+        const { data: { user } } = await supabase.auth.getUser();
         const { students, ...classData } = gc;
+        const dbGC = {
+            ...mapGroupClassToDB(classData),
+            ...(user?.id ? { user_id: user.id } : {})
+        };
         const { data, error } = await supabase
             .from('group_classes')
-            .insert(mapGroupClassToDB(classData))
+            .insert(dbGC)
             .select()
             .single();
 

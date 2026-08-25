@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Student, Appointment, TimetableEntry } from '../types';
 import { api } from '../lib/api';
-import { formatDate, parseFormattedDate } from '../lib/utils';
+import { formatDate, parseFormattedDate, toBRDateStr } from '../lib/utils';
 
 interface UseAutomaticSchedulingProps {
     students: Student[];
@@ -11,6 +11,37 @@ interface UseAutomaticSchedulingProps {
     setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>;
 }
 
+const getNormalizedDayIndex = (dayStr: string): number | undefined => {
+    if (!dayStr) return undefined;
+    const clean = dayStr
+        .trim()
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\s_-]*feira/g, '')
+        .trim();
+
+    const map: Record<string, number> = {
+        'domingo': 0, 'dom': 0,
+        'segunda': 1, 'seg': 1,
+        'terca': 2, 'ter': 2,
+        'quarta': 3, 'qua': 3,
+        'quinta': 4, 'qui': 4,
+        'sexta': 5, 'sex': 5,
+        'sabado': 6, 'sab': 6
+    };
+    return map[clean];
+};
+
+const isSameStudent = (apt: Appointment, s: Student) => {
+    if (apt.studentId && s.id && String(apt.studentId).trim().toLowerCase() === String(s.id).trim().toLowerCase()) {
+        return true;
+    }
+    if (apt.studentName && s.name && apt.studentName.trim().toLowerCase() === s.name.trim().toLowerCase()) {
+        return true;
+    }
+    return false;
+};
+
 export const useAutomaticScheduling = ({
     students,
     appointments,
@@ -19,14 +50,22 @@ export const useAutomaticScheduling = ({
     setTimetable
 }: UseAutomaticSchedulingProps) => {
     const isGeneratingRef = useRef(false);
-    // FIX: flag para re-executar caso um novo aluno tenha chegado enquanto geração estava em andamento
     const needsRetryRef = useRef(false);
+    
+    // Manter referências atualizadas para evitar race conditions em closures assíncronos
+    const appointmentsRef = useRef(appointments);
+    appointmentsRef.current = appointments;
+
+    const studentsRef = useRef(students);
+    studentsRef.current = students;
 
     useEffect(() => {
         const checkAndExtendSchedules = async () => {
-            if (loading || students.length === 0) return;
+            const currentStudents = studentsRef.current;
+            const currentAppointments = appointmentsRef.current;
 
-            // FIX: se já está gerando, sinaliza que precisa de uma nova rodada ao terminar
+            if (loading || currentStudents.length === 0) return;
+
             if (isGeneratingRef.current) {
                 needsRetryRef.current = true;
                 return;
@@ -35,14 +74,10 @@ export const useAutomaticScheduling = ({
             isGeneratingRef.current = true;
             needsRetryRef.current = false;
             try {
-                const daysOfWeekMap: Record<string, number> = { 
-                    'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 
-                };
                 const now = new Date();
-
                 let newAppointmentsToAdd: Omit<Appointment, 'id'>[] = [];
                 let allAppointmentsToDelete: string[] = [];
-                let currentAppointmentsState = [...appointments];
+                let currentAppointmentsState = [...currentAppointments];
                 const todayStr = formatDate(now);
                 const todayDate = parseFormattedDate(todayStr).getTime();
 
@@ -53,19 +88,31 @@ export const useAutomaticScheduling = ({
                     'bg-rose-100 text-rose-700'
                 ];
 
-                // Passo 1: Limpar agendamentos futuros que não batem mais com o horário atual
-                students.forEach(student => {
-                    if (student.status !== 'Ativo') return;
+                console.log(`[Agendamento Automático] Iniciando verificação para ${currentStudents.length} alunos...`);
 
-                    const studentApts = currentAppointmentsState.filter(a => a.studentId === student.id);
+                // Passo 1: Limpar agendamentos futuros que não batem mais com os horários atuais do aluno
+                currentStudents.forEach(student => {
+                    const isActive = (student.status || '').trim().toLowerCase() === 'ativo';
+                    if (!isActive) return;
+
+                    const studentSchedules: any[] = Array.isArray(student.schedules)
+                        ? student.schedules
+                        : typeof student.schedules === 'string'
+                            ? (() => { try { return JSON.parse(student.schedules); } catch { return []; } })()
+                            : [];
+
+                    const studentApts = currentAppointmentsState.filter(a => isSameStudent(a, student));
                     
                     const outdated = studentApts.filter(a => {
                         if (a.subject !== 'Aula Regular' || a.status !== 'Agendado') return false;
                         const aptDate = parseFormattedDate(a.date);
                         if (aptDate.getTime() <= todayDate) return false;
 
-                        const dayName = Object.keys(daysOfWeekMap).find(key => daysOfWeekMap[key] === aptDate.getDay());
-                        return !(student.schedules || []).some(s => s.day === dayName && s.time === a.time);
+                        const dayOfWeek = aptDate.getDay();
+                        return !studentSchedules.some(s => {
+                            const sDayIdx = getNormalizedDayIndex(s.day);
+                            return sDayIdx === dayOfWeek && s.time === a.time;
+                        });
                     });
 
                     if (outdated.length > 0) {
@@ -75,21 +122,21 @@ export const useAutomaticScheduling = ({
                     }
                 });
 
-                // [DIAGNÓSTICO] Resumo dos alunos ativos e seus schedules
-                console.log('[Agendamento] === INÍCIO DA GERAÇÃO ===');
-                console.log(`[Agendamento] Total de alunos: ${students.length}`);
-                students.forEach(s => {
-                    console.log(`[Agendamento] Aluno: "${s.name}" | status="${s.status}" | schedules=`, JSON.stringify(s.schedules));
-                });
+                // Passo 2: Adicionar novos agendamentos conforme o horário atual dos alunos ativos
+                currentStudents.forEach(student => {
+                    const isActive = (student.status || '').trim().toLowerCase() === 'ativo';
+                    const studentSchedules: any[] = Array.isArray(student.schedules)
+                        ? student.schedules
+                        : typeof student.schedules === 'string'
+                            ? (() => { try { return JSON.parse(student.schedules); } catch { return []; } })()
+                            : [];
 
-                // Passo 2: Adicionar novos agendamentos conforme o horário atual
-                students.forEach(student => {
-                    if (student.status !== 'Ativo' || !student.schedules || student.schedules.length === 0) {
-                        console.log(`[Agendamento] Pulando "${student.name}": status=${student.status}, schedules=`, student.schedules);
+                    if (!isActive || studentSchedules.length === 0) {
+                        console.log(`[Agendamento Automático] Aluno "${student.name}": inativo ou sem horários configurados (status=${student.status}, horários=${studentSchedules.length})`);
                         return;
                     }
 
-                    console.log(`[Agendamento] Processando "${student.name}" com ${student.schedules.length} horário(s):`, student.schedules);
+                    console.log(`[Agendamento Automático] Processando aluno "${student.name}" com ${studentSchedules.length} horário(s):`, studentSchedules);
 
                     const colorIndex = parseInt(student.id.replace(/\D/g, '') || '0') % colors.length;
                     const baseColor = colors[colorIndex];
@@ -97,10 +144,10 @@ export const useAutomaticScheduling = ({
 
                     setTimetable(prev => {
                         const studentEntries = prev.filter(t => t.studentId === student.id);
-                        if (studentEntries.length === (student.schedules?.length || 0)) return prev;
+                        if (studentEntries.length === studentSchedules.length) return prev;
 
                         const filteredPrev = prev.filter(t => t.studentId !== student.id);
-                        const newEntries: TimetableEntry[] = (student.schedules || []).map(s => ({
+                        const newEntries: TimetableEntry[] = studentSchedules.map(s => ({
                             studentId: student.id,
                             day: s.day,
                             hour: s.time,
@@ -111,20 +158,16 @@ export const useAutomaticScheduling = ({
                         return [...filteredPrev, ...newEntries];
                     });
 
-                    const studentApts = currentAppointmentsState.filter(a => a.studentId === student.id);
-                    // FIX: usar apenas chaves exatas (data+hora) para evitar duplicatas,
-                    // sem bloquear múltiplos horários no mesmo dia
-                    const existingAptKeys = new Set(studentApts.map(a => `${a.date}-${a.time}`));
+                    const studentApts = currentAppointmentsState.filter(a => isSameStudent(a, student));
+                    const existingAptKeys = new Set(studentApts.map(a => `${toBRDateStr(a.date)}-${a.time}`));
 
-                    console.log(`[Agendamento] "${student.name}" já tem ${studentApts.length} agendamento(s) existente(s).`);
-
-                    (student.schedules || []).forEach(s => {
-                        const targetDay = daysOfWeekMap[s.day];
+                    studentSchedules.forEach(s => {
+                        const targetDay = getNormalizedDayIndex(s.day);
                         if (targetDay === undefined) {
-                            console.warn(`[Agendamento] Dia "${s.day}" não reconhecido para aluno "${student.name}"!`);
+                            console.warn(`[Agendamento Automático] Dia "${s.day}" não reconhecido para o aluno "${student.name}"!`);
                             return;
                         }
-                        let countForThisSchedule = 0;
+
                         for (let i = 0; i < 90; i++) {
                             const dateObj = new Date(now);
                             dateObj.setDate(now.getDate() + i);
@@ -133,8 +176,6 @@ export const useAutomaticScheduling = ({
                                 const dateStr = formatDate(dateObj);
                                 const aptKey = `${dateStr}-${s.time}`;
 
-                                // FIX: verificar apenas duplicata exata (mesma data E mesmo horário),
-                                // permitindo múltiplos horários de um aluno no mesmo dia
                                 if (!existingAptKeys.has(aptKey)) {
                                     newAppointmentsToAdd.push({
                                         studentId: student.id,
@@ -145,43 +186,37 @@ export const useAutomaticScheduling = ({
                                         status: 'Agendado'
                                     });
                                     existingAptKeys.add(aptKey);
-                                    countForThisSchedule++;
                                 }
                             }
                         }
-                        console.log(`[Agendamento] "${student.name}" - ${s.day} ${s.time}: ${countForThisSchedule} novo(s) agendamento(s) a criar.`);
                     });
                 });
 
-                console.log(`[Agendamento] Total: ${newAppointmentsToAdd.length} a criar, ${allAppointmentsToDelete.length} a deletar.`);
+                console.log(`[Agendamento Automático] Total a criar: ${newAppointmentsToAdd.length}, a deletar: ${allAppointmentsToDelete.length}`);
 
-                // Executar operações no banco (se necessário)
+                // Executar operações no banco apenas se houver alterações reais
                 if (allAppointmentsToDelete.length > 0 || newAppointmentsToAdd.length > 0) {
                     try {
-                        // FIX: usar currentAppointmentsState (com exclusões já aplicadas) em vez
-                        // do closure antigo de appointments
                         let updatedList = [...currentAppointmentsState];
 
                         if (allAppointmentsToDelete.length > 0) {
-                            console.log(`Sistema: Removendo ${allAppointmentsToDelete.length} agendamentos desatualizados.`);
                             await api.appointments.removeMany(allAppointmentsToDelete);
                         }
 
                         if (newAppointmentsToAdd.length > 0) {
-                            console.log(`Sistema: Salvando ${newAppointmentsToAdd.length} novos agendamentos automáticos.`);
+                            console.log(`[Agendamento Automático] Salvando ${newAppointmentsToAdd.length} novos agendamentos no Supabase...`);
                             const savedApts = await api.appointments.createMany(newAppointmentsToAdd);
-                            console.log(`[Agendamento] Salvos com sucesso: ${savedApts.length} agendamentos.`);
+                            console.log(`[Agendamento Automático] ${savedApts.length} agendamentos salvos com sucesso no Supabase!`);
                             updatedList = [...updatedList, ...savedApts];
                         }
 
                         setAppointments(updatedList);
                     } catch (error) {
-                        console.error('[Agendamento] ERRO na sincronização automática:', error);
+                        console.error('[Agendamento Automático] ERRO ao salvar agendamentos:', error);
                     }
                 }
             } finally {
                 isGeneratingRef.current = false;
-                // FIX: se um novo aluno chegou durante a geração, aguarda e re-executa
                 if (needsRetryRef.current) {
                     needsRetryRef.current = false;
                     setTimeout(checkAndExtendSchedules, 500);
@@ -191,5 +226,6 @@ export const useAutomaticScheduling = ({
 
         const timer = setTimeout(checkAndExtendSchedules, 1000);
         return () => clearTimeout(timer);
-    }, [students, loading, appointments, setAppointments, setTimetable]);
+    }, [students, appointments, loading, setAppointments, setTimetable]);
 };
+

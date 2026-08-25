@@ -101,20 +101,39 @@ export const useAppData = (session: any) => {
     };
 
     const handleUpdateAppointmentStatus = async (id: string, status: Appointment['status']) => {
+        const previousAppointments = appointments;
+        const previousStudents = students;
+
+        const apt = appointments.find(a => a.id === id);
+        if (!apt) return;
+
+        const previousStatus = apt.status;
+        const student = students.find(s => s.id === apt.studentId);
+
+        // 1. Atualização Otimista Imediata da UI
+        setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+
+        let newCount = student?.totalSessionsAttended || 0;
+        if (status === 'Concluído' && previousStatus !== 'Concluído' && student) {
+            newCount = newCount + 1;
+            setStudents(prev => prev.map(s => s.id === student.id ? { ...s, totalSessionsAttended: newCount } : s));
+        } else if (previousStatus === 'Concluído' && status !== 'Concluído' && student && newCount > 0) {
+            newCount = Math.max(0, newCount - 1);
+            setStudents(prev => prev.map(s => s.id === student.id ? { ...s, totalSessionsAttended: newCount } : s));
+        }
+
+        // 2. Persistência no Banco Supabase em segundo plano
         try {
-            const apt = appointments.find(a => a.id === id);
-            const student = students.find(s => s.id === apt?.studentId);
-
             await api.appointments.updateStatus(id, status);
-            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-
-            if (status === 'Concluído' && student) {
-                const newCount = (student.totalSessionsAttended || 0) + 1;
+            if (student && (status === 'Concluído' || previousStatus === 'Concluído')) {
                 await api.students.updateSessionCount(student.id, newCount);
-                setStudents(prev => prev.map(s => s.id === student.id ? { ...s, totalSessionsAttended: newCount } : s));
             }
         } catch (err) {
-            console.error('Error updating status:', err);
+            console.error('Erro ao atualizar status de presença no Supabase:', err);
+            // Rollback para o estado anterior se houver falha
+            setAppointments(previousAppointments);
+            setStudents(previousStudents);
+            alert('Não foi possível salvar a alteração de presença no banco de dados. A alteração foi revertida.');
         }
     };
 
@@ -194,11 +213,14 @@ export const useAppData = (session: any) => {
     };
 
     const handleUpdateGroupClass = async (gc: GroupClass) => {
+        const previousGroupClasses = groupClasses;
+        setGroupClasses(prev => prev.map(c => c.id === gc.id ? gc : c));
         try {
             await api.groupClasses.update(gc);
-            setGroupClasses(prev => prev.map(c => c.id === gc.id ? gc : c));
         } catch (err) {
             console.error('Error updating group class:', err);
+            setGroupClasses(previousGroupClasses);
+            alert('Erro ao salvar alterações no aulão. Alteração revertida.');
         }
     };
 

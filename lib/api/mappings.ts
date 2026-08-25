@@ -1,20 +1,42 @@
-import { Student, Appointment, Transaction, GroupClass, PerformanceRecord, GroupClassStudent } from '../types';
-import { UserProfile } from '../components/profile/ProfileModal';
+import { Student, Appointment, Transaction, GroupClass, PerformanceRecord, GroupClassStudent } from '../../types';
+import { UserProfile } from '../../components/profile/ProfileModal';
+import { toBRDateStr, toISODateStr } from '../utils';
 
 export function mapStudentFromDB(db: any): Student {
+    let schedules = db.schedules;
+    if (typeof schedules === 'string') {
+        try {
+            schedules = JSON.parse(schedules);
+        } catch {
+            schedules = [];
+        }
+    }
+    if (!Array.isArray(schedules)) {
+        schedules = [];
+    }
+
+    let guardian = db.guardian;
+    if (typeof guardian === 'string') {
+        try {
+            guardian = JSON.parse(guardian);
+        } catch {
+            guardian = undefined;
+        }
+    }
+
     return {
         id: db.id,
         name: db.name,
         email: db.email,
-        birthDate: db.birth_date,
+        birthDate: toBRDateStr(db.birth_date),
         phone: db.phone,
-        registrationDate: db.registration_date,
+        registrationDate: toBRDateStr(db.registration_date),
         status: db.status,
         photo: db.photo,
-        guardian: db.guardian,
+        guardian: guardian,
         schoolGrade: db.school_grade,
         schoolName: db.school_name,
-        schedules: db.schedules,
+        schedules: schedules,
         monthlyFee: Number(db.monthly_fee) || 0,
         totalSessionsAttended: Number(db.total_sessions_attended) || 0,
         notes: db.notes
@@ -25,9 +47,9 @@ export function mapStudentToDB(student: Omit<Student, 'id'>) {
     return {
         name: student.name,
         email: student.email,
-        birth_date: student.birthDate,
+        birth_date: student.birthDate ? toISODateStr(student.birthDate) : null,
         phone: student.phone,
-        registration_date: student.registrationDate,
+        registration_date: student.registrationDate ? toISODateStr(student.registrationDate) : null,
         status: student.status,
         photo: student.photo,
         guardian: student.guardian,
@@ -45,7 +67,7 @@ export function mapAppointmentFromDB(db: any): Appointment {
         id: db.id,
         studentId: db.student_id,
         studentName: db.student_name,
-        date: db.date,
+        date: toBRDateStr(db.date),
         time: db.time,
         subject: db.subject,
         status: db.status,
@@ -57,7 +79,7 @@ export function mapAppointmentToDB(apt: Omit<Appointment, 'id'>) {
     return {
         student_id: apt.studentId,
         student_name: apt.studentName,
-        date: apt.date,
+        date: toISODateStr(apt.date),
         time: apt.time,
         subject: apt.subject,
         status: apt.status,

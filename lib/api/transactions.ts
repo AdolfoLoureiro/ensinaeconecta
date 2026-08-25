@@ -13,9 +13,14 @@ export const transactionsApi = {
         return data.map(mapTransactionFromDB);
     },
     async create(tx: Omit<Transaction, 'id'>): Promise<Transaction> {
+        const { data: { user } } = await supabase.auth.getUser();
+        const dbTx = {
+            ...mapTransactionToDB(tx),
+            ...(user?.id ? { user_id: user.id } : {})
+        };
         const { data, error } = await supabase
             .from('transactions')
-            .insert(mapTransactionToDB(tx))
+            .insert(dbTx)
             .select()
             .single();
 

@@ -13,9 +13,14 @@ export const performanceApi = {
         return data.map(mapPerformanceFromDB);
     },
     async create(record: Omit<PerformanceRecord, 'id'>): Promise<PerformanceRecord> {
+        const { data: { user } } = await supabase.auth.getUser();
+        const dbRecord = {
+            ...mapPerformanceToDB(record),
+            ...(user?.id ? { user_id: user.id } : {})
+        };
         const { data, error } = await supabase
             .from('performance_records')
-            .insert(mapPerformanceToDB(record))
+            .insert(dbRecord)
             .select()
             .single();
 
